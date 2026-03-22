@@ -21,7 +21,7 @@ import { useEffect, useRef, useState } from "react";
 import { SiDiscord, SiTelegram, SiX } from "react-icons/si";
 
 // ─── Live Ticker Hook ─────────────────────────────────────────────────────
-function useLiveTicker(basePrice = 1.0) {
+function useLiveTicker(basePrice = 0.5) {
   const [price, setPrice] = useState(basePrice);
   const [direction, setDirection] = useState<"up" | "down">("up");
   const prevRef = useRef(basePrice);
@@ -430,7 +430,7 @@ export default function App() {
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("KRC");
   const [orderSubmitted, setOrderSubmitted] = useState(false);
-  const { price: livePrice, direction } = useLiveTicker(1.0);
+  const { price: livePrice, direction } = useLiveTicker(0.5);
 
   const scrollTo = (id: string) => {
     const el = document.getElementById(id);
