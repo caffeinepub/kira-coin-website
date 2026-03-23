@@ -8,10 +8,54 @@
 
 import { IDL } from '@icp-sdk/core/candid';
 
-export const idlService = IDL.Service({});
+export const TransactionType = IDL.Variant({
+  'deposit' : IDL.Null,
+  'withdrawal' : IDL.Null,
+});
+export const Transaction = IDL.Record({
+  'id' : IDL.Nat,
+  'transactionType' : TransactionType,
+  'timestamp' : IDL.Int,
+  'amount' : IDL.Nat,
+});
+
+export const idlService = IDL.Service({
+  'deposit' : IDL.Func([IDL.Nat], [], []),
+  'getAllUserBalances' : IDL.Func(
+      [],
+      [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Nat))],
+      ['query'],
+    ),
+  'getBalance' : IDL.Func([], [IDL.Nat], ['query']),
+  'getTransactionHistory' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+  'withdraw' : IDL.Func([IDL.Nat], [], []),
+});
 
 export const idlInitArgs = [];
 
-export const idlFactory = ({ IDL }) => { return IDL.Service({}); };
+export const idlFactory = ({ IDL }) => {
+  const TransactionType = IDL.Variant({
+    'deposit' : IDL.Null,
+    'withdrawal' : IDL.Null,
+  });
+  const Transaction = IDL.Record({
+    'id' : IDL.Nat,
+    'transactionType' : TransactionType,
+    'timestamp' : IDL.Int,
+    'amount' : IDL.Nat,
+  });
+  
+  return IDL.Service({
+    'deposit' : IDL.Func([IDL.Nat], [], []),
+    'getAllUserBalances' : IDL.Func(
+        [],
+        [IDL.Vec(IDL.Tuple(IDL.Principal, IDL.Nat))],
+        ['query'],
+      ),
+    'getBalance' : IDL.Func([], [IDL.Nat], ['query']),
+    'getTransactionHistory' : IDL.Func([], [IDL.Vec(Transaction)], ['query']),
+    'withdraw' : IDL.Func([IDL.Nat], [], []),
+  });
+};
 
 export const init = ({ IDL }) => { return []; };

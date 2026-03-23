@@ -89,10 +89,130 @@ export class ExternalBlob {
         return this;
     }
 }
-export interface backendInterface {
+export interface Transaction {
+    id: bigint;
+    transactionType: TransactionType;
+    timestamp: bigint;
+    amount: bigint;
 }
+export enum TransactionType {
+    deposit = "deposit",
+    withdrawal = "withdrawal"
+}
+export interface backendInterface {
+    deposit(amount: bigint): Promise<void>;
+    getAllUserBalances(): Promise<Array<[Principal, bigint]>>;
+    getBalance(): Promise<bigint>;
+    getTransactionHistory(): Promise<Array<Transaction>>;
+    withdraw(amount: bigint): Promise<void>;
+}
+import type { Transaction as _Transaction, TransactionType as _TransactionType } from "./declarations/backend.did.d.ts";
 export class Backend implements backendInterface {
     constructor(private actor: ActorSubclass<_SERVICE>, private _uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, private _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, private processError?: (error: unknown) => never){}
+    async deposit(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.deposit(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.deposit(arg0);
+            return result;
+        }
+    }
+    async getAllUserBalances(): Promise<Array<[Principal, bigint]>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getAllUserBalances();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getAllUserBalances();
+            return result;
+        }
+    }
+    async getBalance(): Promise<bigint> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getBalance();
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getBalance();
+            return result;
+        }
+    }
+    async getTransactionHistory(): Promise<Array<Transaction>> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.getTransactionHistory();
+                return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.getTransactionHistory();
+            return from_candid_vec_n1(this._uploadFile, this._downloadFile, result);
+        }
+    }
+    async withdraw(arg0: bigint): Promise<void> {
+        if (this.processError) {
+            try {
+                const result = await this.actor.withdraw(arg0);
+                return result;
+            } catch (e) {
+                this.processError(e);
+                throw new Error("unreachable");
+            }
+        } else {
+            const result = await this.actor.withdraw(arg0);
+            return result;
+        }
+    }
+}
+function from_candid_TransactionType_n4(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _TransactionType): TransactionType {
+    return from_candid_variant_n5(_uploadFile, _downloadFile, value);
+}
+function from_candid_Transaction_n2(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: _Transaction): Transaction {
+    return from_candid_record_n3(_uploadFile, _downloadFile, value);
+}
+function from_candid_record_n3(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    id: bigint;
+    transactionType: _TransactionType;
+    timestamp: bigint;
+    amount: bigint;
+}): {
+    id: bigint;
+    transactionType: TransactionType;
+    timestamp: bigint;
+    amount: bigint;
+} {
+    return {
+        id: value.id,
+        transactionType: from_candid_TransactionType_n4(_uploadFile, _downloadFile, value.transactionType),
+        timestamp: value.timestamp,
+        amount: value.amount
+    };
+}
+function from_candid_variant_n5(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: {
+    deposit: null;
+} | {
+    withdrawal: null;
+}): TransactionType {
+    return "deposit" in value ? TransactionType.deposit : "withdrawal" in value ? TransactionType.withdrawal : value;
+}
+function from_candid_vec_n1(_uploadFile: (file: ExternalBlob) => Promise<Uint8Array>, _downloadFile: (file: Uint8Array) => Promise<ExternalBlob>, value: Array<_Transaction>): Array<Transaction> {
+    return value.map((x)=>from_candid_Transaction_n2(_uploadFile, _downloadFile, x));
 }
 export interface CreateActorOptions {
     agent?: Agent;
