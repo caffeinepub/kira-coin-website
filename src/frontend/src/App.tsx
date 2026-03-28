@@ -2110,6 +2110,85 @@ function StatsRow({
   );
 }
 
+// ─── Maintenance Mode ─────────────────────────────────────────────────────────
+const MAINTENANCE_MODE = true;
+
+function MaintenanceScreen() {
+  return (
+    <div className="dark min-h-screen bg-background flex flex-col items-center justify-center px-4 relative overflow-hidden">
+      {/* Background glow effects */}
+      <div className="absolute inset-0 pointer-events-none">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-amber-500/5 blur-3xl" />
+        <div className="absolute top-1/4 left-1/4 w-[300px] h-[300px] rounded-full bg-yellow-600/5 blur-2xl" />
+      </div>
+
+      {/* KiRa Coin Logo */}
+      <div className="mb-8 relative">
+        <div className="w-28 h-28 rounded-full bg-gradient-to-br from-yellow-400 via-amber-500 to-yellow-600 flex items-center justify-center shadow-2xl shadow-amber-500/40 ring-4 ring-amber-500/30">
+          <span
+            className="text-5xl font-black text-black tracking-tight drop-shadow-sm"
+            style={{ textShadow: "0 0 20px rgba(251,191,36,0.8)" }}
+          >
+            K
+          </span>
+        </div>
+        <div
+          className="absolute inset-0 rounded-full animate-ping bg-amber-500/20"
+          style={{ animationDuration: "3s" }}
+        />
+      </div>
+
+      {/* Brand name */}
+      <div className="mb-10 text-center">
+        <h1 className="text-3xl font-bold text-amber-400 tracking-widest uppercase mb-1">
+          KiRa Coin
+        </h1>
+        <p className="text-xs text-muted-foreground tracking-widest uppercase">
+          P2P Trading Platform
+        </p>
+      </div>
+
+      {/* Divider */}
+      <div className="w-24 h-px bg-amber-500/50 mb-10" />
+
+      {/* Main message */}
+      <div className="text-center max-w-lg mb-6">
+        <h2 className="text-3xl md:text-4xl font-extrabold text-foreground mb-3 leading-tight">
+          Website Permanently Blocked
+        </h2>
+        <p className="text-xl md:text-2xl font-semibold text-amber-400/90">
+          वेबसाइट स्थायी रूप से बंद है
+        </p>
+      </div>
+
+      {/* Sub message */}
+      <div className="text-center max-w-md mb-12">
+        <p className="text-muted-foreground text-base mb-1">
+          We'll be back soon. Thank you for your patience.
+        </p>
+        <p className="text-muted-foreground text-base">
+          हम जल्द वापस आएंगे। आपके धैर्य के लिए धन्यवाद।
+        </p>
+      </div>
+
+      {/* Status badge */}
+      <div className="flex items-center gap-2 px-4 py-2 rounded-full border border-amber-500/30 bg-amber-500/10 mb-12">
+        <div className="w-2 h-2 rounded-full bg-amber-400 animate-pulse" />
+        <span className="text-xs text-amber-400 font-medium tracking-wider uppercase">
+          Maintenance in Progress
+        </span>
+      </div>
+
+      {/* Footer */}
+      <div className="absolute bottom-6 text-center">
+        <p className="text-xs text-muted-foreground">
+          © 2026 KiRa Company | Founder &amp; CEO: Ravina Bhatti
+        </p>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main App ─────────────────────────────────────────────────────────────────
 export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
@@ -2154,6 +2233,10 @@ export default function App() {
       setLocalBalance(Number(balance));
     }
   }, [balance]);
+
+  if (MAINTENANCE_MODE) {
+    return <MaintenanceScreen />;
+  }
 
   return (
     <div className="dark min-h-screen bg-background font-body">

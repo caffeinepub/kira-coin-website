@@ -18,6 +18,7 @@ export enum TransactionType {
     withdrawal = "withdrawal"
 }
 export interface backendInterface {
+    _initializeAccessControlWithSecret(secret: string): Promise<void>;
     deposit(amount: bigint): Promise<void>;
     getAllUserBalances(): Promise<Array<[Principal, bigint]>>;
     getBalance(): Promise<bigint>;
