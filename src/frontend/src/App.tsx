@@ -314,10 +314,14 @@ function TradingPanel({
   currentPrice,
   localBalance,
   setLocalBalance,
+  principal,
+  realBalance,
 }: {
   currentPrice: number;
   localBalance: number;
   setLocalBalance: (v: number | ((prev: number) => number)) => void;
+  principal: string | null;
+  realBalance: bigint | undefined;
 }) {
   const [betAmount, setBetAmount] = useState("");
   const [tradingState, setTradingState] = useState<TradingState>("idle");
@@ -386,7 +390,10 @@ function TradingPanel({
   ]);
 
   const bet = Number.parseInt(betAmount, 10);
-  const canTrade = bet > 0 && bet <= localBalance && tradingState === "idle";
+  const hasDeposited =
+    !!principal && realBalance !== undefined && realBalance > 0n;
+  const canTrade =
+    hasDeposited && bet > 0 && bet <= localBalance && tradingState === "idle";
   const areaColor = currentPrice >= BASE_PRICE ? "#10b981" : "#ef4444";
 
   return (
@@ -614,6 +621,15 @@ function TradingPanel({
             )}
           </AnimatePresence>
 
+          {/* Wallet guard notice */}
+          {(!principal || localBalance <= 0) && tradingState === "idle" && (
+            <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-3 text-center text-xs text-yellow-400">
+              {!principal
+                ? "🔒 Login and deposit KRC to trade UP / DOWN"
+                : "⚠️ Deposit KRC coins to activate UP / DOWN trading"}
+            </div>
+          )}
+
           {/* UP / DOWN buttons */}
           {tradingState !== "waiting" && (
             <div className="grid grid-cols-2 gap-3">
@@ -721,16 +737,177 @@ function TradingPanel({
   );
 }
 
+// ─── Trade Signal Feed ─────────────────────────────────────────────────────────
+type TradeSignal = {
+  id: number;
+  direction: "UP" | "DOWN";
+  price: number;
+  time: string;
+  timestamp: number;
+};
+
+const SIGNAL_INTERVAL_MS = 30 * 1000; // 30 seconds
+
+function TradeSignalFeed({ currentPrice }: { currentPrice: number }) {
+  const [signals, setSignals] = useState<TradeSignal[]>([]);
+  const [nextIn, setNextIn] = useState<number>(SIGNAL_INTERVAL_MS);
+  const signalIdRef = useRef(0);
+
+  // Countdown to next signal
+  useEffect(() => {
+    const tick = setInterval(() => {
+      setNextIn((prev) => {
+        if (prev <= 1000) {
+          // Emit new signal
+          const dir: "UP" | "DOWN" = Math.random() > 0.5 ? "UP" : "DOWN";
+          const newSignal: TradeSignal = {
+            id: ++signalIdRef.current,
+            direction: dir,
+            price: currentPrice,
+            time: new Date().toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            }),
+            timestamp: Date.now(),
+          };
+          setSignals((s) => [newSignal, ...s].slice(0, 10));
+          return SIGNAL_INTERVAL_MS;
+        }
+        return prev - 1000;
+      });
+    }, 1000);
+    return () => clearInterval(tick);
+  }, [currentPrice]);
+
+  const minutes = Math.floor(nextIn / 60000);
+  const seconds = Math.floor((nextIn % 60000) / 1000);
+  const latest = signals[0];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay: 0.1 }}
+    >
+      <Card className="border-border/40 bg-gradient-to-br from-card to-card/60 overflow-hidden relative">
+        <div
+          className="absolute inset-0 pointer-events-none opacity-20"
+          style={{
+            background:
+              latest?.direction === "UP"
+                ? "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(16,185,129,0.15), transparent)"
+                : "radial-gradient(ellipse 70% 40% at 50% 0%, rgba(239,68,68,0.15), transparent)",
+          }}
+        />
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <CardTitle className="flex items-center gap-2 text-base font-semibold font-display text-foreground">
+              <Activity className="w-4 h-4 text-yellow-400" />
+              Trade Signals
+              <Badge className="text-[10px] font-bold tracking-widest uppercase bg-yellow-400/10 text-yellow-400 border-yellow-400/30">
+                AUTO
+              </Badge>
+            </CardTitle>
+            <div className="flex items-center gap-2 text-xs text-muted-foreground font-mono">
+              <span>Next signal in:</span>
+              <span className="text-foreground font-bold">
+                {String(minutes).padStart(2, "0")}:
+                {String(seconds).padStart(2, "0")}
+              </span>
+            </div>
+          </div>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Automated trade signals generated every 30 minutes based on KC price
+            trend.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-2 pb-4">
+          {/* Latest big signal */}
+          {latest && (
+            <motion.div
+              key={latest.id}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              className={`flex items-center justify-between p-4 rounded-xl border font-mono ${
+                latest.direction === "UP"
+                  ? "border-emerald-500/40 bg-emerald-500/10"
+                  : "border-red-500/40 bg-red-500/10"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <span
+                  className={`text-3xl font-black ${latest.direction === "UP" ? "text-emerald-400" : "text-red-400"}`}
+                >
+                  {latest.direction === "UP" ? "▲" : "▼"}
+                </span>
+                <div>
+                  <p
+                    className={`text-xl font-black tracking-widest ${latest.direction === "UP" ? "text-emerald-400" : "text-red-400"}`}
+                  >
+                    {latest.direction}
+                  </p>
+                  <p className="text-xs text-muted-foreground">Latest Signal</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-bold text-foreground">
+                  ${latest.price.toFixed(5)}
+                </p>
+                <p className="text-xs text-muted-foreground">{latest.time}</p>
+              </div>
+            </motion.div>
+          )}
+
+          {/* Signal history */}
+          <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1">
+            {signals.slice(1).map((sig) => (
+              <motion.div
+                key={sig.id}
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-mono ${
+                  sig.direction === "UP"
+                    ? "border-emerald-500/20 bg-emerald-500/5 text-emerald-400"
+                    : "border-red-500/20 bg-red-500/5 text-red-400"
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-base">
+                    {sig.direction === "UP" ? "▲" : "▼"}
+                  </span>
+                  <span className="font-bold tracking-widest">
+                    {sig.direction}
+                  </span>
+                </div>
+                <div className="flex items-center gap-4 text-muted-foreground">
+                  <span>${sig.price.toFixed(5)}</span>
+                  <span>{sig.time}</span>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  );
+}
+
 // ─── Buy & Sell Panel ─────────────────────────────────────────────────────────
 function BuySellPanel({
   currentPrice,
   localBalance,
   setLocalBalance,
+  principal,
+  realBalance,
 }: {
   currentPrice: number;
   localBalance: number;
   setLocalBalance: (v: number | ((prev: number) => number)) => void;
+  principal: string | null;
+  realBalance: bigint | undefined;
 }) {
+  const hasWallet =
+    !!principal && realBalance !== undefined && realBalance > 0n;
   const [mode, setMode] = useState<"buy" | "sell">("buy");
   const [buyUsd, setBuyUsd] = useState("");
   const [sellKc, setSellKc] = useState("");
@@ -803,6 +980,19 @@ function BuySellPanel({
       transition={{ duration: 0.3 }}
       className="space-y-4"
     >
+      {/* Wallet Guard */}
+      {!hasWallet && (
+        <div className="rounded-xl border border-yellow-500/40 bg-yellow-500/10 p-4 text-center space-y-2">
+          <p className="text-yellow-400 font-bold text-sm">
+            {!principal ? "🔒 Login required" : "⚠️ Insufficient KRC balance"}
+          </p>
+          <p className="text-muted-foreground text-xs">
+            {!principal
+              ? "Please log in and deposit KRC coins to use Buy & Sell."
+              : "You need KRC coins in your wallet to buy or sell. Please deposit first."}
+          </p>
+        </div>
+      )}
       {/* Price Banner */}
       <Card className="border-primary/30 bg-primary/5">
         <CardContent className="flex items-center justify-between p-4">
@@ -909,9 +1099,14 @@ function BuySellPanel({
               <Button
                 data-ocid="buysell.buy.submit_button"
                 onClick={handleBuy}
-                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"
+                disabled={!hasWallet}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-semibold disabled:opacity-40 disabled:cursor-not-allowed"
               >
-                Buy KC
+                {!principal
+                  ? "Login to Buy"
+                  : !localBalance
+                    ? "Deposit KRC First"
+                    : "Buy KC"}
               </Button>
             </CardContent>
           </Card>
@@ -980,10 +1175,14 @@ function BuySellPanel({
               <Button
                 data-ocid="buysell.sell.submit_button"
                 onClick={handleSell}
-                disabled={Number(sellKc) > localBalance}
+                disabled={!hasWallet || Number(sellKc) > localBalance}
                 className="w-full bg-red-600 hover:bg-red-500 text-white font-semibold disabled:opacity-50"
               >
-                Sell KC
+                {!principal
+                  ? "Login to Sell"
+                  : !localBalance
+                    ? "No KRC Balance"
+                    : "Sell KC"}
               </Button>
             </CardContent>
           </Card>
@@ -1499,13 +1698,15 @@ function BalanceCard({
 // ─── Deposit Form ─────────────────────────────────────────────────────────────
 function DepositForm() {
   const [amount, setAmount] = useState("");
+  const [krcAddress, setKrcAddress] = useState("");
   const deposit = useDeposit();
 
   const handleDeposit = () => {
     const num = Number.parseInt(amount, 10);
-    if (!num || num <= 0) return;
+    if (!num || num <= 0 || !krcAddress.trim()) return;
     deposit.mutate(BigInt(num));
     setAmount("");
+    setKrcAddress("");
   };
 
   return (
@@ -1557,10 +1758,31 @@ function DepositForm() {
               </Button>
             ))}
           </div>
-          {amount && Number.parseInt(amount) > 0 && (
-            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary">
-              You are depositing <strong>{amount} KC (KiRa Coin)</strong> into
-              your wallet.
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">
+              Your KRC Wallet Address
+            </p>
+            <p className="text-xs text-primary/70">
+              Enter your KiRa Coin (KRC) wallet address to receive the deposit.
+            </p>
+            <Input
+              data-ocid="deposit.krc_address.input"
+              type="text"
+              placeholder="Enter your KRC wallet address..."
+              value={krcAddress}
+              onChange={(e) => setKrcAddress(e.target.value)}
+              className="bg-muted/30 border-border/50 focus:border-primary/60 text-foreground placeholder:text-muted-foreground/50 font-mono text-xs"
+            />
+          </div>
+          {amount && Number.parseInt(amount) > 0 && krcAddress.trim() && (
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-sm text-primary space-y-1">
+              <div>
+                You are depositing <strong>{amount} KC (KiRa Coin)</strong> into
+                your wallet.
+              </div>
+              <div className="text-xs text-primary/70 font-mono break-all">
+                To: {krcAddress}
+              </div>
             </div>
           )}
           <Button
@@ -1568,7 +1790,10 @@ function DepositForm() {
             className="w-full bg-primary text-primary-foreground hover:bg-primary/90 font-semibold"
             onClick={handleDeposit}
             disabled={
-              deposit.isPending || !amount || Number.parseInt(amount) <= 0
+              deposit.isPending ||
+              !amount ||
+              Number.parseInt(amount) <= 0 ||
+              !krcAddress.trim()
             }
           >
             {deposit.isPending ? (
@@ -1600,6 +1825,7 @@ function DepositForm() {
 // ─── Withdraw Form ────────────────────────────────────────────────────────────
 function WithdrawForm({ balance }: { balance: bigint | undefined }) {
   const [amount, setAmount] = useState("");
+  const [krcAddress, setKrcAddress] = useState("");
   const withdraw = useWithdraw();
 
   const num = Number.parseInt(amount, 10);
@@ -1607,9 +1833,10 @@ function WithdrawForm({ balance }: { balance: bigint | undefined }) {
     balance !== undefined && num > 0 && BigInt(num) > balance;
 
   const handleWithdraw = () => {
-    if (!num || num <= 0 || insufficient) return;
+    if (!num || num <= 0 || insufficient || !krcAddress.trim()) return;
     withdraw.mutate(BigInt(num));
     setAmount("");
+    setKrcAddress("");
   };
 
   return (
@@ -1666,17 +1893,45 @@ function WithdrawForm({ balance }: { balance: bigint | undefined }) {
               </p>
             )}
           </div>
-          {amount && num > 0 && !insufficient && (
-            <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 text-sm text-accent">
-              You are withdrawing <strong>{amount} KC (KiRa Coin)</strong> from
-              your wallet.
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-muted-foreground">
+              Destination KRC Wallet Address
+            </p>
+            <p className="text-xs text-accent/70">
+              Enter the KiRa Coin (KRC) wallet address to send the withdrawal
+              to.
+            </p>
+            <Input
+              data-ocid="withdraw.krc_address.input"
+              type="text"
+              placeholder="Enter destination KRC wallet address..."
+              value={krcAddress}
+              onChange={(e) => setKrcAddress(e.target.value)}
+              className="bg-muted/30 border-border/50 focus:border-accent/60 text-foreground placeholder:text-muted-foreground/50 font-mono text-xs"
+            />
+          </div>
+          {amount && num > 0 && !insufficient && krcAddress.trim() && (
+            <div className="p-3 rounded-lg bg-accent/10 border border-accent/20 text-sm text-accent space-y-1">
+              <div>
+                You are withdrawing <strong>{amount} KC (KiRa Coin)</strong>{" "}
+                from your wallet.
+              </div>
+              <div className="text-xs text-accent/70 font-mono break-all">
+                To: {krcAddress}
+              </div>
             </div>
           )}
           <Button
             data-ocid="withdraw.submit.button"
             className="w-full bg-accent text-accent-foreground hover:bg-accent/90 font-semibold"
             onClick={handleWithdraw}
-            disabled={withdraw.isPending || !amount || num <= 0 || insufficient}
+            disabled={
+              withdraw.isPending ||
+              !amount ||
+              num <= 0 ||
+              insufficient ||
+              !krcAddress.trim()
+            }
           >
             {withdraw.isPending ? (
               <>
@@ -2014,10 +2269,13 @@ export default function App() {
                 </p>
               </motion.div>
               <MarketTrend data={priceData} />
+              <TradeSignalFeed currentPrice={currentPrice} />
               <TradingPanel
                 currentPrice={currentPrice}
                 localBalance={localBalance}
                 setLocalBalance={setLocalBalance}
+                principal={principal}
+                realBalance={balance}
               />
             </motion.div>
           )}
@@ -2044,6 +2302,8 @@ export default function App() {
                 currentPrice={currentPrice}
                 localBalance={localBalance}
                 setLocalBalance={setLocalBalance}
+                principal={principal}
+                realBalance={balance}
               />
             </motion.div>
           )}
